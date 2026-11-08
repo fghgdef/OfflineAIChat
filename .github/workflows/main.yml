@@ -11,6 +11,9 @@ env:
   # نسخة llama.cpp المستخدمة (تاغ ثابت بدل "master" عشان البناء ما ينكسر فجأة لو تغيّرت الـ API)
   LLAMA_CPP_TAG: "b4753"
 
+permissions:
+  contents: write   # لازم عشان نقدر ننشئ GitHub Release
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -56,3 +59,22 @@ jobs:
         with:
           name: app-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+
+      # بعطي الملف اسم واضح قبل ما يترفع على الـ Release
+      - name: Rename APK
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk \
+             app/build/outputs/apk/debug/OfflineAIChat-beta.apk
+
+      # بينشر الـ APK كـ GitHub Release بتاغ ثابت "beta" — كل بناء جديد بيحدّث نفس
+      # الإصدار (رابط تنزيل ثابت دايمًا بآخر نسخة)
+      - name: Publish beta release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: beta
+          name: "Beta Build"
+          prerelease: true
+          body: |
+            نسخة تجريبية (Beta) تم بناؤها تلقائيًا بتاريخ ${{ github.event.head_commit.timestamp }}.
+            Commit: ${{ github.sha }}
+          files: app/build/outputs/apk/debug/OfflineAIChat-beta.apk
