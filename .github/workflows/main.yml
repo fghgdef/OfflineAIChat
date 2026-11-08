@@ -1,54 +1,43 @@
-name: Build APK
+name: Extract Hyper-Train Contents to Root
 
 on:
-  push:
-    branches: [ "main" ]
   workflow_dispatch:
 
-env:
-  # رابط تنزيل مباشر لملف الموديل بصيغة GGUF (Qwen2.5-Coder 1.5B، مقيّس Q4_K_M، ~1 جيجا)
-  # لو بدك موديل مختلف، بس بدّل هاد الرابط برابط resolve/main/....gguf من Hugging Face
-  MODEL_URL: "https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q4_k_m.gguf"
-  # لازم يطابق قيمة modelFileName بملف MainActivity.kt
-  MODEL_FILENAME: "qwen-model.gguf"
-
 jobs:
-  build:
+  unzip:
     runs-on: ubuntu-latest
-    # أول بناء بيستغرق وقت أطول (ترجمة llama.cpp + تنزيل الموديل)
-    timeout-minutes: 60
+    permissions:
+      contents: write
 
     steps:
-      - name: Checkout repo (with llama.cpp submodule)
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
-      - name: Download GGUF model and place it in app assets
+      - name: Extract ZIP and move contents to root
         run: |
-          mkdir -p app/src/main/assets
-          curl -L "$MODEL_URL" -o "app/src/main/assets/$MODEL_FILENAME"
-          ls -lh app/src/main/assets/
+          # 1. اسم ملف الـ ZIP (عدّله إذا كان اسمه مختلفاً)
+          ZIP_FILE="aaa.zip"
+          
+          # 2. اسم المجلد الداخلي الذي تريد سحب محتوياته
+          INNER_DIR="OfflineAIChat"
+          
+          # 3. إنشاء مجلد مؤقت لفك الضغط فيه أولاً
+          mkdir -p temp_extract
+          
+          # 4. فك الضغط في المجلد المؤقت
+          7z x "$ZIP_FILE" -o"temp_extract" -y
+          
+          # 5. نسخ محتويات المجلد الداخلي إلى الجذر (مع إخفاء الملفات المخفية)
+          # النجمة /* تعني "كل ما بداخل المجلد" وليس المجلد نفسه
+          cp -r temp_extract/"$INNER_DIR"/* .
+          
+          # 6. حذف المجلد المؤقت
+          rm -rf temp_extract
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Set up Android SDK + NDK + CMake
-        uses: android-actions/setup-android@v3
-        with:
-          packages: "platform-tools platforms;android-34 build-tools;34.0.0 ndk;27.0.12077973 cmake;3.22.1"
-
-      - name: Build debug APK with Gradle
-        uses: gradle/gradle-build-action@v3
-        with:
-          gradle-version: 8.6
-          arguments: assembleDebug
-
-      - name: Upload APK as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Commit and push to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git diff --staged --quiet || git commit -m "Extract $INNER_DIR contents to root"
+          git push
