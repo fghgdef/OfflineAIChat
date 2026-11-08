@@ -19,7 +19,7 @@ jobs:
           ZIP_FILE="a.zip"
           
           # 2. اسم المجلد الداخلي الذي تريد سحب محتوياته
-          INNER_DIR"OfflineAIChat"
+          INNER_DIR="OfflineAIChat"
           
           # 3. إنشاء مجلد مؤقت لفك الضغط فيه أولاً
           mkdir -p temp_extract
